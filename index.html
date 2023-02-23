@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <meta charset="utf-8">
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>SCUPE</title>
+        <meta name="description" content="">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <link rel="stylesheet" href="https://pyscript.net/alpha/pyscript.css" />
+        <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
+      <py-env>
+            - pandas
+            - matplotlib
+      </py-env>
+    </head>
+    <body>
+        <div>
+            <form action="index.html">
+                <label for="qtdMercType">Quantidade de tipos de mercadoria:</label>
+                <input type="number" id="qtdMercType" name="qtdMercType" min="1">
+            </form>
+        </div>
+
+        <div id="qtdMercs">
+        </div>
+        <div id="custoMercs">
+        </div>
+
+        <button id = "main" class = "btn btn-primary" type = "submit" pys-onClick="main">Show Output</button>
+        <div id="output_div" style="margin-top: 10px;margin-bottom: 10px;"></div>
+       
+    
+        <py-script> 
+            from js import console
+            import pandas as pd    
+            import matplotlib.pyplot as plt
+            
+            def removeElementsByClass(className):
+                elements = document.getElementsByClassName(className) 
+                while(elements.length > 0):
+                    elements[0].parentNode.removeChild(elements[0])
+            
+            def main(*args, **kwargs):
+                    
+                    
+                    def show_output(element, id):
+                        newOutput = document.createElement("div")
+                        newOutput.setAttribute("id", id)
+                        newOutput.setAttribute("class", "output")
+                        document.body.append(newOutput)
+                        output = Element(id)
+                        output.write(element)
+
+                    class custoProduto:
+                        _counter = 0
+                        def __init__(self, pct):
+                            custoProduto._counter += 1
+                            self.id = custoProduto._counter
+                            self.pct = pct
+                            self.mp = mp*pct 
+                            self.ggp = ggp*pct
+                            self.mod = mod*pct
+                            self.ct = self.mp + self.ggp + self.mod
+
+                    removeElementsByClass("output")
+                    mercs = []
+                    for e in document.getElementById("qtdMercs").children:
+                        mercs.append(int(e.value))
+                    
+                    mp = int(document.getElementById("mp").value)
+                    ggp = int(document.getElementById("ggp").value)
+                    mod = int(document.getElementById("mod").value)
+                    ct = mp + ggp + mod
+
+                    do = 0.1
+                    i = 0.3
+                    lo = 0.1
+                    pv = ct/(1 -(lo + i + do))
+
+                    valorImposto = pv * i
+                    vendasLiquidas = pv - valorImposto
+                    despesasOperacionais = pv * do
+                    lucroOperacional = pv * lo
+                    mercTotal = sum(mercs)
+                    custoMerc = list(mercs)
+
+                    for idMerc, merc in enumerate(mercs):
+                        custoMerc[idMerc] = custoProduto(merc / mercTotal)
+    
+                    df = pd.DataFrame([m.__dict__ for m in custoMerc ])
+                    df.set_index('id', inplace = True)
+                    
+                    df2 = pd.DataFrame({'Itens para Demonstração':[
+                    'Vendas Brutas',
+                    '(-)Imposto sobre vendas',
+                    'Vendas Líquidas',
+                    'Despesas Operacionais',
+                    'Lucro Operacional'
+                    ],
+                    'Valores':[
+                    pv,
+                    -pv*i,
+                    vendasLiquidas,
+                    -despesasOperacionais,
+                    lucroOperacional
+                    ]})           
+
+                    resultadoBruto = pv
+                    for idMerc, merc in enumerate(custoMerc):
+                        s = f'Custo do produto {idMerc}'
+                        v = merc.ct
+                        resultadoBruto -= v
+                        tmp = pd.DataFrame({'Itens para Demonstração':[s],'Valores':[v]})
+                        df2 = pd.concat([df2, tmp])
+
+
+                    tmp = pd.DataFrame({'Itens para Demonstração':'Resultado Bruto','Valores':[resultadoBruto]})
+                    df2 = pd.concat([df2, tmp])
+
+                    to_move = [3, 4]
+                    df2 = df2.drop(to_move).append(df2.loc[to_move])
+                    df2['%'] = (df2['Valores']/pv)*100
+                    df2['%'] = df2['%'].apply(lambda x: "{0:.2f}%".format((x)))
+                    df2.loc[(df2['Itens para Demonstração'] == 'Vendas Líquidas'),'%']=''
+                    df2.loc[(df2['Itens para Demonstração'] == 'Resultado Bruto'),'%']=''
+                    df2 = df2.set_index('Itens para Demonstração')
+                    df2['Valores'] = df2['Valores'].apply(lambda x: "R${:.1f}k".format((x/1000)))
+
+                    show_output(df2, 'df')
+
+                    labels = 'Materia Prima', 'Mão de Obra Direta', 'Gastos Gerais de Produção'
+                    for i in custoMerc:
+                        sizes = [i.mp, i.mod, i.ggp]
+                        fig, ax = plt.subplots()
+                        ax.pie(sizes, labels=labels, autopct=lambda x: 'R${:.0f}.00'.format(x*sum(sizes)/100))
+                        ax.set_title(f'Custo Total Produto {i.id}')
+                        show_output(fig, f'fig{i.id}')
+
+        </py-script>
+        <script src="script.js" async defer></script>
+    </body>
+</html>
